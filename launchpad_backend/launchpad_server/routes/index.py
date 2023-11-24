@@ -119,6 +119,27 @@ def get_jobs():
         doc.pop("_id")
     return (jsonify({"data": result}))
 
+@app.route("/recommended-jobs/<int:user_id>")
+def get_recommended_jobs(user_id):
+    # Query to get postingIds of jobs user has applied to
+    application_collection = mongo.db.application
+    application_query = {"userId": user_id}
+    application_result = list(application_collection.find(application_query, {"postingId": 1}))
+
+    # Compile postingIds into a list
+    posting_ids = [app_record["postingId"] for app_record in application_result]
+
+    # Query the posting collection for records where postingId is not in the list
+    # This means user has not applied to them
+    posting_collection = mongo.db.posting
+    posting_query = {"postingId": {"$nin": posting_ids}}
+    available_postings = list(posting_collection.find(posting_query))
+
+    for posting in available_postings:
+        posting.pop("_id")
+
+    return jsonify({"data": available_postings})
+
 @app.route("/companies")
 def get_companies():
     # Select * from company

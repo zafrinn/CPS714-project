@@ -10,6 +10,17 @@ import TableCell from "@mui/material/TableCell";
 import TableContainer from "@mui/material/TableContainer";
 import TableRow from "@mui/material/TableRow";
 import Bookmark from "@mui/icons-material/Bookmark";
+import { createTheme, ThemeProvider } from "@mui/material/styles";
+import CircularProgress from "@mui/material/CircularProgress";
+import Box from "@mui/material/Box";
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: "#5E17EB",
+    },
+  },
+});
 
 function StatusIcon(status) {
   if (status === "Applied") {
@@ -28,47 +39,69 @@ export function LandingPage({ userId, setPage }) {
   const [userData, setUserData] = useState({});
   const [applicationData, setApplicationData] = useState({});
   const [jobData, setJobData] = useState({});
+  const [recommendedData, setRecommendedData] = useState({});
   const [companyData, setCompanyData] = useState({});
+  const [loading1, setLoading1] = useState(true);
+  const [loading2, setLoading2] = useState(true);
   const navigate = useNavigate();
   useEffect(() => {
     if (userId) {
-      fetch(`/users/${userId}`)
-        .then((res) => res.json())
-        .then((data) => {
-          setUserData(data);
-        });
+      const userPromise = fetch(`/users/${userId}`).then((res) => res.json());
+      const applicationsPromise = fetch(`/applications/${userId}`).then((res) =>
+        res.json()
+      );
+      const recommendedJobsPromise = fetch(`/recommended-jobs/${userId}`).then(
+        (res) => res.json()
+      );
+
+      Promise.all([userPromise, applicationsPromise, recommendedJobsPromise])
+        .then(([userData, applicationData, recommendedData]) => {
+          setUserData(userData);
+          setApplicationData(applicationData);
+          setRecommendedData(recommendedData);
+          setLoading1(false);
+        })
+        .catch((error) => console.error("Error fetching user data:", error));
     }
   }, [userId]);
 
   useEffect(() => {
-    if (userId) {
-      fetch(`/applications/${userId}`)
-        .then((res) => res.json())
-        .then((data) => {
-          setApplicationData(data);
-        });
-    }
-  }, [userId]);
+    const jobsPromise = fetch(
+      `/jobs?type=null&duration=null&location=null`
+    ).then((res) => res.json());
+    const companiesPromise = fetch(`/companies`).then((res) => res.json());
 
-  useEffect(() => {
-    fetch(`/jobs?type=null&duration=null&location=null`)
-      .then((res) => res.json())
-      .then((data) => {
-        setJobData(data);
-      });
-  }, []);
-
-  useEffect(() => {
-    fetch(`/companies`)
-      .then((res) => res.json())
-      .then((data) => {
-        setCompanyData(data);
-      });
+    Promise.all([jobsPromise, companiesPromise])
+      .then(([jobData, companyData]) => {
+        setJobData(jobData);
+        setCompanyData(companyData);
+        setLoading2(false);
+      })
+      .catch((error) =>
+        console.error("Error fetching job and company data:", error)
+      );
   }, []);
 
   const jobsCompanyData =
     jobData.data && companyData.data && userData.data
       ? jobData.data.map((job) => {
+          const companyRecord = companyData.data.find(
+            (company) => company.companyId === job.companyId
+          );
+          const saved = userData.data[0].savedPostings.find(
+            (posting) => posting.postingId === job.postingId
+          );
+          return {
+            ...job,
+            companyName: companyRecord.companyName,
+            saved: saved ? true : false,
+          };
+        })
+      : [];
+
+  const recommendedCompanyData =
+    recommendedData.data && companyData.data && userData.data
+      ? recommendedData.data.map((job) => {
           const companyRecord = companyData.data.find(
             (company) => company.companyId === job.companyId
           );
@@ -97,7 +130,7 @@ export function LandingPage({ userId, setPage }) {
 
   const savedPostings = jobsCompanyData.filter((job) => job.saved);
 
-  const recommendedPostings = jobsCompanyData.sort((a, b) => {
+  const recommendedPostings = recommendedCompanyData.sort((a, b) => {
     return new Date(a.deadline) - new Date(b.deadline);
   });
 
@@ -113,8 +146,21 @@ export function LandingPage({ userId, setPage }) {
     navigate(`/jobs/${jobId}`);
   };
 
-  if (!userId) {
-    return <div>Loading...</div>;
+  if (loading1 || loading2) {
+    return (
+      <ThemeProvider theme={theme}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100vh",
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      </ThemeProvider>
+    );
   }
 
   return (
