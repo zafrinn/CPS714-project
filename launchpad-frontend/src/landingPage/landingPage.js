@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Grid, IconButton } from "@mui/material";
+import { Grid } from "@mui/material";
 import { mock_data } from "./mockData";
 import { useNavigate } from "react-router-dom";
 import "./landingPage.css";
@@ -9,7 +9,6 @@ import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableContainer from "@mui/material/TableContainer";
 import TableRow from "@mui/material/TableRow";
-import Bookmark from "@mui/icons-material/Bookmark";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
@@ -33,7 +32,6 @@ function StatusIcon(status) {
 }
 
 export function LandingPage({ userId, setPage }) {
-  const [data, setData] = useState(mock_data);
   const [appsExpanded, setAppsExpanded] = useState(false);
   const [savedExpanded, setSavedExpanded] = useState(false);
   const [userData, setUserData] = useState({});
@@ -133,13 +131,6 @@ export function LandingPage({ userId, setPage }) {
   const recommendedPostings = recommendedCompanyData.sort((a, b) => {
     return new Date(a.deadline) - new Date(b.deadline);
   });
-
-  function handleSave(i) {
-    // CHANGE THIS
-    let temp = { ...data };
-    temp.recommended[i].saved = !temp.recommended[i].saved;
-    setData(temp);
-  }
 
   const clickedJob = (jobId) => {
     setPage(`/jobs/${jobId}`);
@@ -296,21 +287,10 @@ export function LandingPage({ userId, setPage }) {
                         {row.duration} {row.type}, {row.location}
                       </p>
                     </TableCell>
-                    <TableCell align="center" style={{ paddingRight: 20 }}>
-                      <IconButton onClick={() => handleSave(i)}>
-                        {row.saved ? (
-                          <Bookmark
-                            height={"90px"}
-                            sx={{ color: "#ffa500", fontSize: "35px" }}
-                          />
-                        ) : (
-                          <Bookmark
-                            height={"90px"}
-                            sx={{ color: "#B8B8B8", fontSize: "35px" }}
-                          />
-                        )}
-                      </IconButton>
-                    </TableCell>
+                    <TableCell
+                      align="center"
+                      style={{ paddingRight: 20 }}
+                    ></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
