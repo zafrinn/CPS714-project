@@ -1,5 +1,5 @@
 from launchpad_server import app
-from flask import render_template, request, flash, redirect, url_for,jsonify
+from flask import render_template, request, flash, redirect, url_for,jsonify, send_file
 from .forms import SignupForm, LoginForm  
 from flask_login import login_user
 from flask_bcrypt import Bcrypt, check_password_hash
@@ -10,11 +10,13 @@ from flask import session
 import pymongo
 import sys
 import re
+import gridfs
 sys.path.append('./launchpad_server/routes')
 from startup_data import startup_data
 app.config['MONGO_URI'] = 'mongodb://localhost:27017/database'
 from datetime import datetime
 from flask import request
+from bson import ObjectId
 
 # Initialize the PyMongo extension
 mongo = PyMongo(app)
@@ -432,3 +434,57 @@ def delete_account(user_id):
         print(f"Error deleting account: {str(e)}")
         return jsonify({"error": "Error deleting account. Please try again."}), 500
 
+
+@app.route('/get-resume/<resume_id>')
+def get_resume(resume_id):
+    try:
+        resume_id = ObjectId(resume_id)
+        fs = gridfs.GridFS(mongo.db, collection='pdfs')
+        resume_file = fs.get(resume_id)
+
+        # Set the appropriate content type for PDF files
+        response = send_file(resume_file, mimetype='application/pdf')
+
+        # Optionally, you can specify a filename for the downloaded file
+        response.headers['Content-Disposition'] = 'attachment; filename=resume.pdf'
+        
+        return response
+    except Exception as e:
+        return str(e), 404  # Or handle the error as needed
+
+@app.route ("/upload-pdf", methods=["POST"])
+def upload_pdf():
+    if 'resume' in request.files and 'coverLetter' in request.files:
+        user_id = session.get('user_id')
+        if user_id:
+            resume = request.files['resume']
+            cover_letter = request.files['coverLetter']
+            postingId = request.form['postingId']
+            dt = datetime.now()
+            # Save files to MongoDB using GridFS
+
+            fs = gridfs.GridFS(mongo.db, collection='application')
+            resume = fs.put(resume, filename=resume.filename, custom_metadata={"type": "resume"})
+            cover_letter = fs.put(cover_letter, filename=cover_letter.filename, custom_metadata={"type": "cover_letter"}) 
+
+            # get number of existing applications, add 1 to generate applicationID
+            existing_applications = mongo.db.application.count_documents({})
+            new_application_id = existing_applications + 1
+
+            application_data = {
+                "applicationId": new_application_id,  
+                "resume": resume,
+                "coverLetter": cover_letter,
+                "Status": "Applied",
+                "postingId": postingId,  
+                "userId": user_id,
+                "date": dt,
+            }
+
+            mongo.db.application.insert_one(application_data)
+            return jsonify({"message": "PDF files uploaded successfully"}), 200
+        
+        else:
+            return jsonify({"error": "User not authenticated"}), 401   
+    else:
+        return jsonify({"error": "Missing files"}), 400

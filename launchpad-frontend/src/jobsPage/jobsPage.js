@@ -34,6 +34,15 @@ export function JobPostings({setPage}) {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+  
+    if (tabParam === 'saved') {
+      setValue(1); 
+    } else {
+      setValue(0); 
+    }
+  
     fetch(
       `/jobs?type=${typeFilter}&duration=${durationFilter}&location=${locationFilter}`
     )
@@ -406,7 +415,7 @@ function JobExpanded({ postingSelected, updateList, postings, saved }) {
                     alignContent: "space-evenly",
                   }}
                 >
-                  <ApplyButton companyName={expandedPosting.companyName}>
+                  <ApplyButton postingID={expandedPosting.postingId} companyName={expandedPosting.companyName}>
                     Apply
                   </ApplyButton>
                   <Button
